@@ -24,9 +24,9 @@ def search_and_download_images():
         if '_m.' in img_url:
             img_url = img_url.replace('_m.', '_b.')
         download_image(img_url, os.path.join(DOWNLOAD_DIR, f"image_{i+1}.jpg"))
-        print(f"Downloading image from {img_url}")
+        print(f"download image {img_url}")
 
 if __name__ == '__main__':
     search_and_download_images()
-    print("Downloaded images successfully.")
+    print("download image success.")
 
