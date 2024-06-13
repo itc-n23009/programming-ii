@@ -1,21 +1,44 @@
 import requests, os
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
-def download_page(url, output_dir):
-    response = requests.get(url)
-    if response.status_code == 200:
-        filename = os.path.join(output_dir, f"{url.split('/')[-1]}.html")
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(response.text)
-        for link in BeautifulSoup(response.text, 'html.parser').find_all('a', href=True):
-            download_page(urljoin(url, link['href']), output_dir)
-    else:
-        print(f"Link broken: {url}")
+def is_valid(url):
+    return bool(urlparse(url).netloc) and bool(urlparse(url).scheme)
+
+def get_all_links(url):
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return {urljoin(url, a['href']) for a in soup.find_all('a', href=True) if is_valid(urljoin(url, a['href']))}
+    except requests.RequestException as e:
+        print(f"Error fetching {url}: {e}")
+        return set()
+
+def download_page(url, session):
+    try:
+        response = session.get(url)
+        if response.status_code == 404:
+            print(f"リンク切れ: {url}")
+        else:
+            path = os.path.join("downloads", urlparse(url).netloc, urlparse(url).path.strip("/"))
+            if not os.path.splitext(path)[1]:
+                path = os.path.join(path, "index.html")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'wb') as f:
+                f.write(response.content)
+            print(f"ダウンロード: {url}")
+    except requests.RequestException as e:
+        print(f"Error downloading {url}: {e}")
+
+def main(start_url):
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Mozilla/5.0'})
+    os.makedirs("downloads", exist_ok=True)
+
+    for link in get_all_links(start_url):
+        download_page(link, session)
 
 if __name__ == "__main__":
-    output_dir = 'downloaded_pages'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    download_page('https://example.com', output_dir)
+    start_url = input("URLを入力してください: ")
+    main(start_url)
 
